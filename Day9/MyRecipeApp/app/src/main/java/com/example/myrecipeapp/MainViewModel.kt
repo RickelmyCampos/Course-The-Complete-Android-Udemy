@@ -1,6 +1,5 @@
 package com.example.myrecipeapp
 
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -13,9 +12,9 @@ class MainViewModel : ViewModel() {
     private val _categorieState = mutableStateOf(RecipeState())
     var categorieState: State<RecipeState> = _categorieState
 init {
-    fechCategories()
+    fetchCategories()
 }
-    private fun fechCategories() {
+    private fun fetchCategories() {
         viewModelScope.launch {
             try {
                 val response = recipeService.getCategories()
