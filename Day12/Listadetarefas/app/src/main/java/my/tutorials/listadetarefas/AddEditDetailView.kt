@@ -32,6 +32,7 @@ fun AddEditDetailView(id: Long, viewModel: WishViewModel, navController: NavCont
         ){navController.navigateUp()}
     }) {
         Column(modifier = Modifier.padding(it)) {
+
             Spacer(modifier = Modifier.height(10.dp))
             WishTextField(
                 label = "Title",
