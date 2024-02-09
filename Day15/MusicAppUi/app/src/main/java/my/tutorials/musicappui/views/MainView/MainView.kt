@@ -2,19 +2,31 @@ package my.tutorials.musicappui.views.MainView
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.ModalBottomSheetLayout
+import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.Scaffold
 import androidx.compose.material.ScaffoldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,13 +63,18 @@ import my.tutorials.musicappui.views.LibraryView.LibraryView
 import my.tutorials.musicappui.views.SubscriptionView.SubscriptionView
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun MainView() {
     val scaffoldState: ScaffoldState = rememberScaffoldState()
     val scope: CoroutineScope = rememberCoroutineScope()
     val controler: NavController = rememberNavController()
     val viewModel: MainViewModel = viewModel()
+    val isSheetFullScreen by remember {
+        mutableStateOf(false)
+    }
+    val modifier = if (isSheetFullScreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth()
+
     val navBackStackEntry by controler.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -71,18 +88,26 @@ fun MainView() {
     val title = remember {
         mutableStateOf(currentScreen.title)
     }
+    val modalSheetState = rememberModalBottomSheetState(
+        initialValue = ModalBottomSheetValue.Hidden,
+        confirmStateChange = { it != ModalBottomSheetValue.HalfExpanded })
+    val roundedCornerRadius = if (isSheetFullScreen) 0.dp else 12.dp
     val bottomBar: @Composable () -> Unit = {
         if (currentScreen is Screen.DrawerScreen || currentScreen == Screen.BottomScreen.Home) {
             BottomNavigation(modifier = Modifier.wrapContentSize()) {
                 screensInBottom.forEach { item ->
+                    val isSelected = currentRoute == item.bRoute
+                    val tint = if (isSelected) Color.White else Color.Black
                     BottomNavigationItem(
                         selected = currentRoute == item.bRoute,
                         selectedContentColor = Color.White,
                         unselectedContentColor = Color.Black,
                         onClick = { controler.navigate(item.bRoute) },
-                        label = { Text(text = item.bTitle) },
+                        label = { Text(text = item.bTitle, color = tint) },
                         icon = {
+
                             Icon(
+                                tint = tint,
                                 painter = painterResource(id = item.icon),
                                 contentDescription = item.bTitle
                             )
@@ -91,47 +116,72 @@ fun MainView() {
             }
         }
     }
+    ModalBottomSheetLayout(
+        sheetState = modalSheetState,
+        sheetShape = RoundedCornerShape(
+            topStart = roundedCornerRadius,
+            topEnd = roundedCornerRadius
+        ), sheetContent = {
 
-    Scaffold(
-        drawerContent = {
-            LazyColumn(modifier = Modifier.padding(16.dp)) {
-                items(screensInDrawer) { item ->
-                    DrawerItem(selected = currentRoute == item.dRoute, item = item) {
-                        scope.launch {
-                            scaffoldState.drawerState.close()
-                        }
-                        if (item.route == Screen.DrawerScreen.AddAccount.route) {
-                            dialogOpen.value = true
-                        } else {
-                            controler.navigate(item.dRoute)
-                            title.value = item.dTitle
+            MoreBottomSheet(modifier = Modifier)
+        }) {
+        Scaffold(
+            drawerContent = {
+                LazyColumn(modifier = Modifier.padding(16.dp)) {
+                    items(screensInDrawer) { item ->
+                        DrawerItem(selected = currentRoute == item.dRoute, item = item) {
+                            scope.launch {
+                                scaffoldState.drawerState.close()
+                            }
+                            if (item.route == Screen.DrawerScreen.AddAccount.route) {
+                                dialogOpen.value = true
+                            } else {
+                                controler.navigate(item.dRoute)
+                                title.value = item.dTitle
+                            }
                         }
                     }
                 }
-            }
-        },
-        bottomBar = bottomBar,
-        scaffoldState = scaffoldState,
-        topBar = {
-            TopAppBar(
-                title = { Text(text = title.value) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            /* Abrir o Drawer Navigation*/
+            },
+            bottomBar = bottomBar,
+            scaffoldState = scaffoldState,
+            topBar = {
+                TopAppBar(
+                    actions = {
+                        IconButton(onClick = {
                             scope.launch {
-                                scaffoldState.drawerState.open()
+                                if (modalSheetState.isVisible)
+                                    modalSheetState.hide()
+                                else
+                                    modalSheetState.show()
                             }
                         }) {
-                        Icon(imageVector = Icons.Default.AccountCircle, contentDescription = null)
-                    }
-                })
-        }
-    ) {
-        Navigation(viewModel = viewModel, navController = controler, pd = it)
-        AccountDialog(dialogOpen = dialogOpen)
+                            Icon(imageVector = Icons.Default.MoreVert, contentDescription = null)
+                        }
+                    },
+                    title = { Text(text = title.value) },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                /* Abrir o Drawer Navigation*/
+                                scope.launch {
+                                    scaffoldState.drawerState.open()
+                                }
+                            }) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = null
+                            )
+                        }
+                    })
+            }
+        ) {
+            Navigation(viewModel = viewModel, navController = controler, pd = it)
+            AccountDialog(dialogOpen = dialogOpen)
 
+        }
     }
+
 }
 
 @Composable
@@ -150,6 +200,29 @@ fun DrawerItem(selected: Boolean, item: Screen.DrawerScreen, onItemClicked: () -
             modifier = Modifier.padding(end = 8.dp, top = 4.dp)
         )
         Text(text = item.dTitle, style = MaterialTheme.typography.headlineMedium)
+    }
+}
+
+@Composable
+fun MoreBottomSheet(modifier: Modifier) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp)
+            .background(MaterialTheme.colorScheme.primary)
+    ) {
+        Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Row(modifier.padding(16.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    modifier = Modifier.padding(end = 8.dp),
+                    contentDescription = null
+                )
+                Text(text = "Settings")
+            }
+
+        }
+
     }
 }
 
